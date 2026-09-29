@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Asesmen Sumatif - Matematika Kelas 11</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f0fdf4; color: #1f2937; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        /* Modal Animation */
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideIn { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
+        .animate-slide-in { animation: slideIn 0.3s ease-out forwards; }
+
+        /* Print styles for downloading result */
+        @media print {
+            body * { visibility: hidden; }
+            #print-area, #print-area * { visibility: visible; }
+            #print-area { position: absolute; left: 0; top: 0; width: 100%; padding: 20px; }
+            .no-print { display: none !important; }
+        }
+    </style>
+</head>
+<body class="antialiased min-h-screen flex flex-col">
+
+    <nav class="bg-green-700 text-white shadow-lg sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center gap-3">
+                    <img id="nav-logo" src="https://upload.wikimedia.org/wikipedia/commons/2/29/Nahdlatul_Ulama_Logo.svg" alt="Logo" class="h-10 w-10 bg-white p-1 rounded-full object-contain">
+                    <div>
+                        <h1 class="text-sm sm:text-lg font-bold leading-tight">MA Mu'allimin NU</h1>
+                        <p class="text-xs text-green-200">Asesmen Sumatif Matematika Kls 11</p>
+                    </div>
+                </div>
+                <div id="nav-user-info" class="hidden flex items-center gap-4">
+                    <span id="nav-username" class="text-sm font-medium hidden sm:block"></span>
+                    <button onclick="logout()" class="bg-green-800 hover:bg-green-900 px-3 py-1.5 rounded-md text-sm transition font-medium text-white border border-green-600">
+                        <i class="fas fa-sign-out-alt mr-1"></i> Keluar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main id="app-container" class="flex-grow w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+        <!-- Dynamic Content Will Be Rendered Here -->
+    </main>
+
+    <footer class="bg-green-800 text-green-200 text-center py-4 text-sm mt-auto">
+        <p>Disusun oleh <strong>Dra. Siti Daiyah</strong> &copy; 2026 MA Mu'allimin NU</p>
+    </footer>
+
+    <div id="custom-modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm px-4">
+        <div class="bg-white rounded-xl shadow-2xl max-w-sm w-full p-6 animate-slide-in">
+            <div class="flex items-center gap-3 mb-4">
+                <div id="modal-icon" class="w-10 h-10 rounded-full flex items-center justify-center shrink-0"></div>
+                <h3 id="modal-title" class="text-lg font-bold text-gray-900"></h3>
+            </div>
+            <p id="modal-message" class="text-gray-600 text-sm mb-6"></p>
+            <div class="flex justify-end gap-3">
+                <button id="modal-cancel-btn" class="hidden px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition">Batal</button>
+                <button id="modal-ok-btn" class="px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. DEFAULT DATA & STATE ---
+        const KKM = 78;
+        const TIME_LIMIT_MINUTES = 90;
+        const MAX_ATTEMPTS = 2;
+        
+        let state = {
+            view: 'login', // login, admin, exam, result
+            currentUser: null,
+            timer: null,
+            timeLeft: 0,
+            answers: {},
+            testMode: false
+        };
+
+        // Bank Soal Default (Kontekstual Barisan & Deret)
+        const defaultQuestions = [
+            // PG (1-15)
+            { id: 1, type: 'mc', q: 'Seorang penjahit menghasilkan 10 potong kemeja pada hari pertama. Setiap hari berikutnya, ia mampu menjahit 2 potong lebih banyak dari hari sebelumnya. Banyaknya kemeja yang dijahit pada hari ke-15 adalah...', options: ['38 potong', '40 potong', '42 potong', '44 potong'], ans: 0 },
+            { id: 2, type: 'mc', q: 'Sebuah pabrik roti memproduksi 500 bungkus pada bulan pertama. Setiap bulan, produksi meningkat sebanyak 50 bungkus. Total produksi roti selama 1 tahun (12 bulan) adalah...', options: ['8.000 bungkus', '9.300 bungkus', '10.500 bungkus', '11.000 bungkus'], ans: 1 },
+            { id: 3, type: 'mc', q: 'Dalam sebuah gedung pertunjukan, baris terdepan memiliki 15 kursi. Baris di belakangnya selalu memiliki 4 kursi lebih banyak dari baris di depannya. Jika terdapat 10 baris kursi, kapasitas gedung tersebut adalah...', options: ['300 kursi', '330 kursi', '350 kursi', '370 kursi'], ans: 1 },
+            { id: 4, type: 'mc', q: 'Seseorang menabung di bank dengan setoran awal Rp100.000,00. Setiap bulan ia menambah setorannya sebesar Rp20.000,00 dari bulan sebelumnya. Besar tabungan pada bulan ke-8 adalah...', options: ['Rp220.000,00', 'Rp240.000,00', 'Rp260.000,00', 'Rp280.000,00'], ans: 1 },
+            { id: 5, type: 'mc', q: 'Sebuah pohon tumbuh 5 cm pada minggu pertama. Jika setiap minggu pertumbuhannya adalah 2 kali lipat dari minggu sebelumnya, tinggi tambahan pohon pada minggu ke-5 adalah...', options: ['40 cm', '80 cm', '160 cm', '320 cm'], ans: 1 },
+            { id: 6, type: 'mc', q: 'Amuba membelah diri menjadi dua setiap 20 menit. Jika mula-mula ada 10 amuba, banyak amuba setelah 2 jam adalah...', options: ['320', '640', '1.280', '2.560'], ans: 1 }, // 2 jam = 120 menit = 6 kali. 10 * 2^6 = 640.
+            { id: 7, type: 'mc', q: 'Keuntungan seorang pedagang bertambah setiap bulan dengan jumlah yang sama. Jika keuntungan bulan ke-3 adalah Rp150.000 dan bulan ke-6 adalah Rp225.000, keuntungan pada bulan pertama adalah...', options: ['Rp50.000', 'Rp75.000', 'Rp100.000', 'Rp125.000'], ans: 2 }, // b=25k, a = 150 - 2(25) = 100k
+            { id: 8, type: 'mc', q: 'Sebuah tali dipotong menjadi 5 bagian yang panjangnya membentuk barisan geometri. Bagian terpendek 4 cm dan terpanjang 324 cm. Panjang tali semula adalah...', options: ['480 cm', '482 cm', '484 cm', '486 cm'], ans: 2 }, // r=3. S5 = 4(3^5 - 1)/2 = 2 * 242 = 484
+            { id: 9, type: 'mc', q: 'Dalam suatu tumpukan batu bata, baris paling atas ada 8 bata, tepat di bawahnya 10 bata, dan seterusnya. Jika ada 15 baris, banyak batu bata pada baris paling bawah adalah...', options: ['32', '34', '36', '38'], ans: 2 }, // U15 = 8 + 14(2) = 36
+            { id: 10, type: 'mc', q: 'Gaji karyawan pabrik naik Rp50.000 setiap tahun. Jika gaji tahun pertama Rp2.000.000, total gaji yang diterima selama 5 tahun bekerja adalah...', options: ['Rp10.500.000', 'Rp11.000.000', 'Rp11.500.000', 'Rp12.000.000'], ans: 0 }, // S5 = 5/2 (4M + 4(50k)) = 5/2 (4.2M) = 10.5M
+            { id: 11, type: 'mc', q: 'Sebuah bola dijatuhkan dari ketinggian 10 m dan memantul kembali setinggi 3/4 dari ketinggian sebelumnya. Panjang lintasan bola sampai berhenti adalah...', options: ['40 m', '50 m', '60 m', '70 m'], ans: 3 }, // S_inf = 10 + 2(10*3/4 / (1-3/4)) = 10 + 2(7.5 / 0.25) = 10 + 60 = 70
+            { id: 12, type: 'mc', q: 'Pembangunan jalan tol diselesaikan bertahap. Tahap I sejauh 15 km, dan setiap tahap selanjutnya berkurang 2 km dari tahap sebelumnya. Jarak yang diselesaikan pada tahap ke-6 adalah...', options: ['5 km', '7 km', '9 km', '11 km'], ans: 0 },
+            { id: 13, type: 'mc', q: 'Jumlah penduduk suatu desa berlipat ganda setiap 10 tahun. Jika tahun 2000 jumlahnya 5.000 jiwa, perkiraan jumlah penduduk pada tahun 2040 adalah...', options: ['40.000', '60.000', '80.000', '100.000'], ans: 2 }, // 2040 = 4 periode. 5000 * 2^4 = 80000
+            { id: 14, type: 'mc', q: 'Andi menyusun kelereng membentuk segitiga. Baris ke-1 ada 1 kelereng, ke-2 ada 2 kelereng, ke-3 ada 3 kelereng, dst. Total kelereng untuk 12 baris adalah...', options: ['66', '78', '91', '105'], ans: 1 }, // n(n+1)/2 = 12*13/2 = 78
+            { id: 15, type: 'mc', q: 'Bakteri membelah diri menjadi dua tiap 15 menit. Dari 20 bakteri awal, setelah 1 jam akan menjadi...', options: ['160', '320', '640', '1.280'], ans: 1 }, // 4 periode. 20 * 2^4 = 320
+
+            // B/S (16-25)
+            { id: 16, type: 'tf', q: 'Jika Pak Ali menabung mulai Rp10.000 dan bertambah Rp5.000 setiap harinya, maka pada hari ke-10 ia harus menabung sebesar Rp55.000.', ans: 'Benar' }, // U10 = 10000 + 9(5000) = 55000
+            { id: 17, type: 'tf', q: 'Laju penyebaran virus berkembang 3 kali lipat tiap jam. Jika jam pertama ada 2 orang yang terinfeksi, maka pada jam ke-4 ada 24 orang terinfeksi.', ans: 'Salah' }, // U4 = 2 * 3^3 = 54
+            { id: 18, type: 'tf', q: 'Harga jual mobil mengalami penyusutan. Jika harga awal Rp200 juta dan menyusut setengahnya tiap 5 tahun, harga di tahun ke-15 (setelah 3 periode) adalah Rp25 juta.', ans: 'Benar' },
+            { id: 19, type: 'tf', q: 'Pola tumpukan jeruk di pasar adalah 1, 4, 9, 16... Banyak jeruk pada tumpukan ke-5 adalah 25 buah.', ans: 'Benar' },
+            { id: 20, type: 'tf', q: 'Suku ke-n dari keuntungan minimarket dirumuskan Un = 50.000n + 10.000. Keuntungan pada bulan ke-4 adalah Rp210.000.', ans: 'Benar' },
+            { id: 21, type: 'tf', q: 'Lintasan pantulan bola tenis yang memantul setengah dari ketinggian awal 8 m, panjang lintasan seluruhnya hingga berhenti adalah 16 m.', ans: 'Salah' }, // 8 + 2(4/(1-0.5)) = 8 + 16 = 24
+            { id: 22, type: 'tf', q: 'Setiap panen cabai menghasilkan tambahan 3 kg dari panen sebelumnya. Ini merupakan contoh penerapan Barisan Geometri.', ans: 'Salah' }, // Aritmetika
+            { id: 23, type: 'tf', q: 'Tingkat inflasi yang menaikkan harga barang secara eksponensial dapat dihitung menggunakan rumus Deret Geometri.', ans: 'Benar' },
+            { id: 24, type: 'tf', q: 'Tumpukan gelas kaca: atas 4, bawahnya 7, bawahnya 10. Tumpukan ke-6 memiliki 19 gelas.', ans: 'Benar' }, // 4 + 5(3) = 19
+            { id: 25, type: 'tf', q: 'Cicilan utang yang setiap bulan turun dengan nominal tetap (misal turun Rp50.000/bulan) adalah bentuk Deret Aritmetika menurun.', ans: 'Benar' },
+
+            // Menjodohkan (26-35)
+            { id: 26, type: 'match', q: 'Barisan dengan selisih tetap setiap sukunya disebut...', ans: 'Barisan Aritmetika' },
+            { id: 27, type: 'match', q: 'Barisan dengan rasio tetap setiap sukunya disebut...', ans: 'Barisan Geometri' },
+            { id: 28, type: 'match', q: 'Rumus jumlah n suku pertama deret aritmetika adalah...', ans: 'Sn = n/2 (2a + (n-1)b)' },
+            { id: 29, type: 'match', q: 'Rumus suku ke-n barisan geometri adalah...', ans: 'Un = a.r^(n-1)' },
+            { id: 30, type: 'match', q: 'Jika a=5 dan b=3, maka suku ke-10 adalah...', ans: '32' },
+            { id: 31, type: 'match', q: 'Jika a=2 dan r=2, maka suku ke-6 adalah...', ans: '64' },
+            { id: 32, type: 'match', q: 'Jumlah tak hingga deret geometri dengan a=10 dan r=0.5 adalah...', ans: '20' },
+            { id: 33, type: 'match', q: 'Simbol beda atau selisih dalam barisan aritmetika adalah...', ans: 'b' },
+            { id: 34, type: 'match', q: 'Simbol perbandingan tetap dalam barisan geometri adalah...', ans: 'r' },
+            { id: 35, type: 'match', q: 'Jumlah 5 suku pertama dari 2, 4, 6, 8... adalah...', ans: '30' }
+        ];
+
+        const matchOptionsBank = [
+            'Barisan Aritmetika', 'Barisan Geometri', 'Sn = n/2 (2a + (n-1)b)', 'Un = a.r^(n-1)',
+            '32', '64', '20', 'b', 'r', '30'
+        ];
+
+        // --- 2. LOCAL STORAGE MANAGEMENT ---
+        function getDB() {
+            if (!localStorage.getItem('math_assessment_db')) {
+                const initialDB = {
+                    settings: { 
+                        adminPass: 'admin', 
+                        logo: 'https://upload.wikimedia.org/wikipedia/commons/2/29/Nahdlatul_Ulama_Logo.svg'
+                    },
+                    questions: defaultQuestions,
+                    students: {}, // { 'Name_Presensi': { name, presensi, kelas, attempts, history: [{score, date}] } }
+                };
+                localStorage.setItem('math_assessment_db', JSON.stringify(initialDB));
+            }
+            return JSON.parse(localStorage.getItem('math_assessment_db'));
+        }
+
+        function saveDB(db) {
+            localStorage.setItem('math_assessment_db', JSON.stringify(db));
+        }
+
+        // --- 3. UI UTILITIES (Modals) ---
+        function showModal(title, message, type = 'info', onOk = null, showCancel = false) {
+            const modal = document.getElementById('custom-modal');
+            const titleEl = document.getElementById('modal-title');
+            const msgEl = document.getElementById('modal-message');
+            const iconEl = document.getElementById('modal-icon');
+            const okBtn = document.getElementById('modal-ok-btn');
+            const cancelBtn = document.getElementById('modal-cancel-btn');
+
+            titleEl.textContent = title;
+            msgEl.textContent = message;
+
+            // Configure styling based on type
+            iconEl.className = 'w-10 h-10 rounded-full flex items-center justify-center shrink-0 text-white';
+            if (type === 'error') {
+                iconEl.classList.add('bg-red-500');
+                iconEl.innerHTML = '<i class="fas fa-exclamation-triangle"></i>';
+                okBtn.className = 'px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition';
+            } else if (type === 'success') {
+                iconEl.classList.add('bg-green-500');
+                iconEl.innerHTML = '<i class="fas fa-check"></i>';
+                okBtn.className = 'px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition';
+            } else if (type === 'warning') {
+                iconEl.classList.add('bg-yellow-500');
+                iconEl.innerHTML = '<i class="fas fa-exclamation"></i>';
+                okBtn.className = 'px-4 py-2 text-sm font-medium text-white bg-yellow-600 hover:bg-yellow-700 rounded-lg transition';
+            } else {
+                iconEl.classList.add('bg-blue-500');
+                iconEl.innerHTML = '<i class="fas fa-info"></i>';
+                okBtn.className = 'px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition';
+            }
+
+            cancelBtn.classList.toggle('hidden', !showCancel);
+
+            // Event Listeners (using clone to remove old listeners)
+            const newOkBtn = okBtn.cloneNode(true);
+            okBtn.parentNode.replaceChild(newOkBtn, okBtn);
+            newOkBtn.addEventListener('click', () => {
+                closeModal();
+                if (onOk) onOk();
+            });
+
+            const newCancelBtn = cancelBtn.cloneNode(true);
+            cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
+            newCancelBtn.addEventListener('click', closeModal);
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('custom-modal').classList.add('hidden');
+        }
+
+        // --- 4. RENDER ROUTER ---
+        function render() {
+            const container = document.getElementById('app-container');
+            const navUserInfo = document.getElementById('nav-user-info');
+            const navUsername = document.getElementById('nav-username');
+            const db = getDB();
+
+            // Update Logo
+            document.getElementById('nav-logo').src = db.settings.logo;
+
+            if (state.currentUser) {
+                navUserInfo.classList.remove('hidden');
+                let roleBadge = state.currentUser.role === 'admin' ? '<span class="bg-yellow-400 text-yellow-900 text-xs px-2 py-0.5 rounded ml-2">Admin</span>' : '';
+                navUsername.innerHTML = `${state.currentUser.name} ${roleBadge}`;
+            } else {
+                navUserInfo.classList.add('hidden');
+            }
+
+            container.innerHTML = '';
+
+            switch (state.view) {
+                case 'login': renderLogin(container); break;
+                case 'admin': renderAdmin(container, db); break;
+                case 'exam': renderExam(container, db); break;
+                case 'result': renderResult(container, db); break;
+                default: renderLogin(container);
+            }
+        }
+
+        // --- 5. VIEWS ---
+
+        function renderLogin(container) {
+            container.innerHTML = `
+                <div class="max-w-md mx-auto bg-white rounded-2xl shadow-xl overflow-hidden mt-10 animate-fade-in border border-green-100">
+                    <div class="bg-green-700 p-6 text-center text-white">
+                        <h2 class="text-2xl font-bold mb-2">Portal Asesmen</h2>
+                        <p class="text-green-200 text-sm">Pilih akses masuk Anda</p>
+                    </div>
+                    <div class="p-6">
+                        <div class="flex rounded-lg bg-gray-100 p-1 mb-6">
+                            <button id="tab-siswa" onclick="switchLoginTab('siswa')" class="flex-1 py-2 text-sm font-medium rounded-md bg-white shadow text-green-700 transition">Siswa</button>
+                            <button id="tab-admin" onclick="switchLoginTab('admin')" class="flex-1 py-2 text-sm font-medium rounded-md text-gray-500 hover:text-gray-700 transition">Admin / Guru</button>
+                        </div>
+
+                        <!-- Form Siswa -->
+                        <form id="form-siswa" class="space-y-4" onsubmit="handleLogin(event, 'siswa')">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Nama Lengkap</label>
+                                <input type="text" id="s-nama" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition" placeholder="Masukkan nama lengkap">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Kelas</label>
+                                <select id="s-kelas" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none bg-white">
+                                    <option value="11 IPA 1">11 IPA 1</option>
+                                    <option value="11 IPA 2">11 IPA 2</option>
+                                    <option value="11 IPS 1">11 IPS 1</option>
+                                    <option value="11 IPS 2">11 IPS 2</option>
+                                    <option value="11 Agama">11 Agama</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">No. Presensi (Kata Sandi)</label>
+                                <input type="number" id="s-presensi" required min="1" max="50" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none transition" placeholder="Contoh: 15">
+                            </div>
+                            <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2.5 rounded-lg transition mt-4 shadow-lg shadow-green-200">Masuk Ujian</button>
+                        </form>
+
+                        <!-- Form Admin -->
+                        <form id="form-admin" class="space-y-4 hidden" onsubmit="handleLogin(event, 'admin')">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Username Admin</label>
+                                <input type="text" id="a-user" required value="admin" class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 focus:ring-2 focus:ring-green-500 outline-none" readonly>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Kata Sandi</label>
+                                <input type="password" id="a-pass" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none transition" placeholder="Masukkan kata sandi admin">
+                            </div>
+                            <button type="submit" class="w-full bg-yellow-500 hover:bg-yellow-600 text-yellow-900 font-bold py-2.5 rounded-lg transition mt-4 shadow-lg shadow-yellow-200">Masuk Panel Admin</button>
+                        </form>
+                    </div>
+                </div>
+            `;
+        }
+
+        window.switchLoginTab = function(type) {
+            const tabSiswa = document.getElementById('tab-siswa');
+            const tabAdmin = document.getElementById('tab-admin');
+            const formSiswa = document.getElementById('form-siswa');
+            const formAdmin = document.getElementById('form-admin');
+
+            if (type === 'siswa') {
+                tabSiswa.className = 'flex-1 py-2 text-sm font-medium rounded-md bg-white shadow text-green-700 transition';
+                tabAdmin.className = 'flex-1 py-2 text-sm font-medium rounded-md text-gray-500 hover:text-gray-700 transition';
+                formSiswa.classList.remove('hidden');
+                formAdmin.classList.add('hidden');
+            } else {
+                tabAdmin.className = 'flex-1 py-2 text-sm font-medium rounded-md bg-white shadow text-yellow-700 transition';
+                tabSiswa.className = 'flex-1 py-2 text-sm font-medium rounded-md text-gray-500 hover:text-gray-700 transition';
+                formAdmin.classList.remove('hidden');
+                formSiswa.classList.add('hidden');
+            }
+        };
+
+        window.handleLogin = function(e, role) {
+            e.preventDefault();
+            const db = getDB();
+
+            if (role === 'admin') {
+                const pass = document.getElementById('a-pass').value;
+                if (pass === db.settings.adminPass) {
+                    state.currentUser = { role: 'admin', name: 'Administrator' };
+                    state.view = 'admin';
+                    render();
+                } else {
+                    showModal('Akses Ditolak', 'Kata sandi admin salah.', 'error');
+                }
+            } else {
+                const name = document.getElementById('s-nama').value.trim();
+                const kelas = document.getElementById('s-kelas').value;
+                const presensi = document.getElementById('s-presensi').value.toString();
+                const studentId = `${name}_${presensi}`;
+
+                if (!name || !presensi) {
+                    showModal('Peringatan', 'Mohon isi semua data.', 'warning');
+                    return;
+                }
+
+                let studentData = db.students[studentId];
+                
+                if (!studentData) {
+                    // New Student
+                    studentData = { name, kelas, presensi, attempts: 0, history: [] };
+                    db.students[studentId] = studentData;
+                    saveDB(db);
+                }
+
+                if (studentData.attempts >= MAX_ATTEMPTS) {
+                    showModal('Akses Ditolak', `Siswa bernama ${name} telah mencapai batas maksimal pengerjaan (${MAX_ATTEMPTS} kali).`, 'error');
+                    return;
+                }
+
+                state.currentUser = { role: 'siswa', id: studentId, ...studentData };
+                
+                showModal('Siap Memulai', `Waktu ujian: ${TIME_LIMIT_MINUTES} Menit. Jumlah soal: 35. KKM: ${KKM}. Tekan OK untuk mulai.`, 'info', () => {
+                    startExam();
+                }, true);
+            }
+        };
+
+        window.logout = function() {
+            if (state.view === 'exam') {
+                showModal('Konfirmasi', 'Anda sedang mengerjakan ujian. Apakah yakin ingin keluar? Ujian akan dianggap hangus.', 'warning', () => {
+                    clearInterval(state.timer);
+                    state = { view: 'login', currentUser: null, timer: null, timeLeft: 0, answers: {}, testMode: false };
+                    render();
+                }, true);
+            } else {
+                state = { view: 'login', currentUser: null, timer: null, timeLeft: 0, answers: {}, testMode: false };
+                render();
+            }
+        }
+
+        function renderAdmin(container, db) {
+            container.innerHTML = `
+                <div class="bg-white rounded-xl shadow-md border border-gray-200 animate-fade-in">
+                    <div class="p-6 border-b border-gray-200 bg-gray-50 rounded-t-xl flex justify-between items-center flex-wrap gap-4">
+                        <h2 class="text-2xl font-bold text-gray-800">Panel Admin & Guru</h2>
+                        <button onclick="testAsStudent()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium shadow transition">
+                            <i class="fas fa-play mr-2"></i>Uji Coba Aplikasi (Mode Siswa)
+                        </button>
+                    </div>
+                    
+                    <div class="p-6">
+                        <div class="flex space-x-2 border-b border-gray-200 pb-2 mb-6 overflow-x-auto hide-scrollbar">
+                            <button onclick="switchAdminTab('soal')" id="atab-soal" class="admin-tab active whitespace-nowrap px-4 py-2 text-green-700 border-b-2 border-green-700 font-semibold transition">Kelola Soal</button>
+                            <button onclick="switchAdminTab('nilai')" id="atab-nilai" class="admin-tab whitespace-nowrap px-4 py-2 text-gray-500 hover:text-green-700 transition">Data Nilai Siswa</button>
+                            <button onclick="switchAdminTab('pengaturan')" id="atab-pengaturan" class="admin-tab whitespace-nowrap px-4 py-2 text-gray-500 hover:text-green-700 transition">Pengaturan</button>
+                        </div>
+
+                        <!-- Tab Soal -->
+                        <div id="apanel-soal" class="space-y-6">
+                            <div class="flex justify-between items-center">
+                                <h3 class="text-lg font-bold text-gray-700">Bank Soal (35 Soal)</h3>
+                                <p class="text-sm text-gray-500">Klik soal untuk mengedit.</p>
+                            </div>
+                            <div class="grid gap-4 h-[60vh] overflow-y-auto pr-2" id="admin-questions-list">
+                                ${db.questions.map((q, idx) => `
+                                    <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 hover:border-green-400 hover:shadow-md transition cursor-pointer" onclick="editQuestion(${q.id})">
+                                        <div class="flex gap-3">
+                                            <span class="bg-green-100 text-green-800 font-bold px-2 py-1 rounded text-sm h-fit shrink-0">${idx + 1}</span>
+                                            <div>
+                                                <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1 block">
+                                                    ${q.type === 'mc' ? 'Pilihan Ganda' : q.type === 'tf' ? 'Benar / Salah' : 'Menjodohkan'}
+                                                </span>
+                                                <p class="text-gray-800 font-medium text-sm sm:text-base line-clamp-2">${q.q}</p>
+                                                <p class="text-green-600 text-sm mt-2 font-medium">Kunci: ${getAnswerText(q)}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+
+                        <!-- Tab Nilai -->
+                        <div id="apanel-nilai" class="hidden space-y-6">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="text-lg font-bold text-gray-700">Rekap Nilai Siswa</h3>
+                                <button onclick="clearAllData()" class="text-red-600 hover:text-red-800 text-sm font-medium underline">Hapus Semua Data Siswa</button>
+                            </div>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-sm text-left text-gray-500 border rounded-lg overflow-hidden shadow-sm">
+                                    <thead class="text-xs text-gray-700 uppercase bg-gray-100">
+                                        <tr>
+                                            <th class="px-6 py-3">Nama Siswa</th>
+                                            <th class="px-6 py-3">Kelas</th>
+                                            <th class="px-6 py-3 text-center">Presensi</th>
+                                            <th class="px-6 py-3 text-center">Percobaan</th>
+                                            <th class="px-6 py-3 text-center">Nilai Terbaik</th>
+                                            <th class="px-6 py-3 text-center">Aksi</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${Object.values(db.students).length === 0 ? `<tr><td colspan="6" class="px-6 py-4 text-center text-gray-400">Belum ada data ujian siswa.</td></tr>` : 
+                                        Object.values(db.students).map(s => {
+                                            const bestScore = s.history.length > 0 ? Math.max(...s.history.map(h => h.score)) : '-';
+                                            return `
+                                            <tr class="bg-white border-b hover:bg-gray-50">
+                                                <td class="px-6 py-4 font-medium text-gray-900">${s.name}</td>
+                                                <td class="px-6 py-4">${s.kelas}</td>
+                                                <td class="px-6 py-4 text-center">${s.presensi}</td>
+                                                <td class="px-6 py-4 text-center">
+                                                    <span class="${s.attempts >= MAX_ATTEMPTS ? 'text-red-600 font-bold' : ''}">${s.attempts} / ${MAX_ATTEMPTS}</span>
+                                                </td>
+                                                <td class="px-6 py-4 text-center font-bold ${bestScore >= KKM ? 'text-green-600' : (bestScore !== '-' ? 'text-red-500' : '')}">${bestScore !== '-' ? bestScore.toFixed(1) : '-'}</td>
+                                                <td class="px-6 py-4 text-center">
+                                                    <button onclick="resetStudentAttempt('${s.name}_${s.presensi}')" class="text-yellow-600 hover:text-yellow-900 font-medium text-xs bg-yellow-50 px-2 py-1 rounded">Reset 1 Percobaan</button>
+                                                </td>
+                                            </tr>
+                                        `}).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Tab Pengaturan -->
+                        <div id="apanel-pengaturan" class="hidden space-y-8 max-w-xl">
+                            <div class="bg-gray-50 p-5 rounded-lg border border-gray-200">
+                                <h3 class="text-md font-bold text-gray-700 mb-4 border-b pb-2">Ubah Kata Sandi Admin</h3>
+                                <div class="space-y-3">
+                                    <input type="password" id="new-admin-pass" placeholder="Kata sandi baru" class="w-full px-4 py-2 border rounded focus:ring-green-500 focus:border-green-500">
+                                    <button onclick="changeAdminPass()" class="bg-green-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-green-700">Simpan Kata Sandi</button>
+                                </div>
+                            </div>
+                            <div class="bg-gray-50 p-5 rounded-lg border border-gray-200">
+                                <h3 class="text-md font-bold text-gray-700 mb-4 border-b pb-2">Ubah Logo Sekolah</h3>
+                                <div class="space-y-3">
+                                    <p class="text-xs text-gray-500">Masukkan URL gambar untuk mengganti logo sekolah (di pojok kiri atas).</p>
+                                    <input type="text" id="new-logo-url" placeholder="https://..." value="${db.settings.logo}" class="w-full px-4 py-2 border rounded focus:ring-green-500 focus:border-green-500 text-sm">
+                                    <div class="flex items-center gap-3 mt-2">
+                                        <img src="${db.settings.logo}" class="h-10 w-10 bg-white p-1 rounded-full border object-contain" alt="Current Logo">
+                                        <button onclick="changeLogo()" class="bg-green-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-green-700">Perbarui Logo</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- Edit Question Modal (Inner) -->
+                <div id="edit-q-modal" class="fixed inset-0 z-[110] hidden flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm px-4 py-6">
+                    <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-full flex flex-col overflow-hidden animate-slide-in">
+                        <div class="bg-green-700 px-6 py-4 flex justify-between items-center text-white">
+                            <h3 class="font-bold text-lg">Edit Soal</h3>
+                            <button onclick="closeEditModal()" class="text-green-200 hover:text-white"><i class="fas fa-times text-xl"></i></button>
+                        </div>
+                        <div class="p-6 overflow-y-auto" id="edit-q-form">
+                            <!-- Injected dynamically -->
+                        </div>
+                        <div class="border-t p-4 bg-gray-50 flex justify-end gap-3">
+                            <button onclick="closeEditModal()" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm font-medium">Batal</button>
+                            <button onclick="saveEditedQuestion()" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium">Simpan Perubahan</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        window.switchAdminTab = function(tab) {
+            ['soal', 'nilai', 'pengaturan'].forEach(t => {
+                const btn = document.getElementById(`atab-${t}`);
+                const panel = document.getElementById(`apanel-${t}`);
+                if (t === tab) {
+                    btn.classList.add('text-green-700', 'border-b-2', 'border-green-700', 'font-semibold');
+                    btn.classList.remove('text-gray-500');
+                    panel.classList.remove('hidden');
+                } else {
+                    btn.classList.remove('text-green-700', 'border-b-2', 'border-green-700', 'font-semibold');
+                    btn.classList.add('text-gray-500');
+                    panel.classList.add('hidden');
+                }
+            });
+        };
+
+        window.getAnswerText = function(q) {
+            if (q.type === 'mc') return q.options[q.ans];
+            if (q.type === 'tf') return q.ans;
+            if (q.type === 'match') return q.ans;
+            return '-';
+        };
+
+        let editingQId = null;
+        window.editQuestion = function(id) {
+            const db = getDB();
+            const q = db.questions.find(x => x.id === id);
+            if (!q) return;
+            editingQId = id;
+            
+            const form = document.getElementById('edit-q-form');
+            let html = `
+                <div class="mb-4">
+                    <label class="block text-sm font-bold text-gray-700 mb-1">Teks Soal</label>
+                    <textarea id="eq-text" rows="4" class="w-full px-3 py-2 border rounded-lg focus:ring-green-500 focus:border-green-500">${q.q}</textarea>
+                </div>
+            `;
+
+            if (q.type === 'mc') {
+                html += `<label class="block text-sm font-bold text-gray-700 mb-2">Pilihan & Jawaban Benar</label>`;
+                q.options.forEach((opt, i) => {
+                    html += `
+                    <div class="flex items-center gap-3 mb-2">
+                        <input type="radio" name="eq-ans-mc" value="${i}" ${q.ans === i ? 'checked' : ''} class="w-4 h-4 text-green-600 focus:ring-green-500">
+                        <input type="text" id="eq-opt-${i}" value="${opt}" class="w-full px-3 py-2 border rounded-lg focus:ring-green-500 focus:border-green-500">
+                    </div>`;
+                });
+            } else if (q.type === 'tf') {
+                html += `
+                <label class="block text-sm font-bold text-gray-700 mb-2">Kunci Jawaban</label>
+                <div class="flex gap-4">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="radio" name="eq-ans-tf" value="Benar" ${q.ans === 'Benar' ? 'checked' : ''} class="w-4 h-4 text-green-600 focus:ring-green-500">
+                        <span>Benar</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="radio" name="eq-ans-tf" value="Salah" ${q.ans === 'Salah' ? 'checked' : ''} class="w-4 h-4 text-green-600 focus:ring-green-500">
+                        <span>Salah</span>
+                    </label>
+                </div>`;
+            } else if (q.type === 'match') {
+                html += `
+                <label class="block text-sm font-bold text-gray-700 mb-2">Kunci Jawaban (Pasangan)</label>
+                <select id="eq-ans-match" class="w-full px-3 py-2 border rounded-lg focus:ring-green-500 focus:border-green-500">
+                    ${matchOptionsBank.map(opt => `<option value="${opt}" ${q.ans === opt ? 'selected' : ''}>${opt}</option>`).join('')}
+                </select>
+                <p class="text-xs text-gray-500 mt-2">*Opsi jawaban menjodohkan diambil dari bank opsi yang tetap.</p>
+                `;
+            }
+
+            form.innerHTML = html;
+            document.getElementById('edit-q-modal').classList.remove('hidden');
+        };
+
+        window.closeEditModal = function() {
+            document.getElementById('edit-q-modal').classList.add('hidden');
+            editingQId = null;
+        };
+
+        window.saveEditedQuestion = function() {
+            if (!editingQId) return;
+            const db = getDB();
+            const qIndex = db.questions.findIndex(x => x.id === editingQId);
+            if (qIndex === -1) return;
+            
+            const q = db.questions[qIndex];
+            q.q = document.getElementById('eq-text').value;
+
+            if (q.type === 'mc') {
+                for (let i=0; i<4; i++) {
+                    q.options[i] = document.getElementById(`eq-opt-${i}`).value;
+                }
+                const selectedAns = document.querySelector('input[name="eq-ans-mc"]:checked');
+                if (selectedAns) q.ans = parseInt(selectedAns.value);
+            } else if (q.type === 'tf') {
+                const selectedAns = document.querySelector('input[name="eq-ans-tf"]:checked');
+                if (selectedAns) q.ans = selectedAns.value;
+            } else if (q.type === 'match') {
+                q.ans = document.getElementById('eq-ans-match').value;
+            }
+
+            db.questions[qIndex] = q;
+            saveDB(db);
+            closeEditModal();
+            showModal('Sukses', 'Soal berhasil diperbarui!', 'success', () => render());
+        };
+
+        window.testAsStudent = function() {
+            showModal('Uji Coba Aplikasi', 'Anda akan masuk ke mode ujian seolah-olah sebagai siswa. Nilai uji coba tidak akan disimpan ke database siswa. Lanjutkan?', 'info', () => {
+                state.currentUser = { role: 'admin_test', name: 'Guru (Uji Coba)', kelas: 'Admin', presensi: '00' };
+                state.testMode = true;
+                startExam();
+            }, true);
+        };
+
+        window.changeAdminPass = function() {
+            const val = document.getElementById('new-admin-pass').value;
+            if (val.length < 4) {
+                showModal('Gagal', 'Kata sandi harus minimal 4 karakter.', 'error');
+                return;
+            }
+            const db = getDB();
+            db.settings.adminPass = val;
+            saveDB(db);
+            showModal('Sukses', 'Kata sandi admin berhasil diperbarui!', 'success');
+            document.getElementById('new-admin-pass').value = '';
+        };
+
+        window.changeLogo = function() {
+            const val = document.getElementById('new-logo-url').value;
+            if (!val) return;
+            const db = getDB();
+            db.settings.logo = val;
+            saveDB(db);
+            showModal('Sukses', 'Logo berhasil diperbarui!', 'success', () => render());
+        };
+
+        window.resetStudentAttempt = function(studentId) {
+            const db = getDB();
+            if (db.students[studentId] && db.students[studentId].attempts > 0) {
+                db.students[studentId].attempts -= 1;
+                saveDB(db);
+                showModal('Sukses', '1 Percobaan siswa berhasil direset.', 'success', () => render());
+            }
+        };
+
+        window.clearAllData = function() {
+            showModal('Hapus Semua Data', 'PERINGATAN: Semua data nilai siswa akan dihapus permanen. Lanjutkan?', 'error', () => {
+                const db = getDB();
+                db.students = {};
+                saveDB(db);
+                render();
+            }, true);
+        };
+
+        function startExam() {
+            state.view = 'exam';
+            state.answers = {};
+            state.timeLeft = TIME_LIMIT_MINUTES * 60;
+            render();
+            
+            // Setup Timer
+            state.timer = setInterval(() => {
+                state.timeLeft--;
+                updateTimerDisplay();
+                if (state.timeLeft <= 0) {
+                    clearInterval(state.timer);
+                    submitExam(true);
+                }
+            }, 1000);
+        }
+
+        function updateTimerDisplay() {
+            const timerEl = document.getElementById('exam-timer');
+            if (!timerEl) return;
+            const m = Math.floor(state.timeLeft / 60);
+            const s = state.timeLeft % 60;
+            timerEl.textContent = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+            if (state.timeLeft < 300) { // < 5 mins
+                timerEl.classList.add('text-red-500', 'animate-pulse');
+            }
+        }
+
+        function renderExam(container, db) {
+            const mcQs = db.questions.filter(q => q.type === 'mc');
+            const tfQs = db.questions.filter(q => q.type === 'tf');
+            const matchQs = db.questions.filter(q => q.type === 'match');
+
+            container.innerHTML = `
+                <div class="bg-white rounded-xl shadow-lg relative overflow-hidden animate-fade-in border border-gray-100 pb-20">
+                    
+                    <!-- Timer Header -->
+                    <div class="sticky top-16 z-40 bg-white/90 backdrop-blur-md border-b border-gray-200 px-6 py-4 flex justify-between items-center shadow-sm">
+                        <div>
+                            <h2 class="text-xl font-bold text-gray-800">Asesmen Sumatif</h2>
+                            <p class="text-sm text-gray-500">${state.currentUser.name} - ${state.currentUser.kelas}</p>
+                        </div>
+                        <div class="flex items-center gap-2 bg-green-50 px-4 py-2 rounded-lg border border-green-200">
+                            <i class="far fa-clock text-green-600"></i>
+                            <span id="exam-timer" class="font-mono font-bold text-lg text-green-700">90:00</span>
+                        </div>
+                    </div>
+
+                    <div class="p-6 max-w-4xl mx-auto space-y-12">
+                        
+                        <!-- Section 1: Pilihan Ganda -->
+                        <section>
+                            <div class="mb-6 pb-2 border-b-2 border-green-200">
+                                <h3 class="text-xl font-bold text-gray-800">I. Pilihan Ganda</h3>
+                                <p class="text-sm text-gray-500">Pilihlah satu jawaban yang paling tepat!</p>
+                            </div>
+                            <div class="space-y-8">
+                                ${mcQs.map((q, idx) => `
+                                    <div class="bg-gray-50 p-5 rounded-xl border border-gray-100">
+                                        <p class="font-medium text-gray-800 mb-4 flex gap-3">
+                                            <span class="bg-green-600 text-white rounded-full w-7 h-7 flex items-center justify-center shrink-0 shadow-sm">${idx + 1}</span>
+                                            <span class="leading-relaxed">${q.q}</span>
+                                        </p>
+                                        <div class="ml-10 space-y-2">
+                                            ${q.options.map((opt, oIdx) => `
+                                                <label class="flex items-start gap-3 p-3 rounded-lg border border-transparent hover:border-green-200 hover:bg-green-50 cursor-pointer transition">
+                                                    <input type="radio" name="ans_${q.id}" value="${oIdx}" onchange="saveAnswer(${q.id}, ${oIdx})" class="mt-1 w-4 h-4 text-green-600 focus:ring-green-500 cursor-pointer">
+                                                    <span class="text-gray-700">${['A','B','C','D'][oIdx]}. ${opt}</span>
+                                                </label>
+                                            `).join('')}
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </section>
+
+                        <!-- Section 2: Benar / Salah -->
+                        <section>
+                            <div class="mb-6 pb-2 border-b-2 border-green-200">
+                                <h3 class="text-xl font-bold text-gray-800">II. Benar atau Salah</h3>
+                                <p class="text-sm text-gray-500">Tentukan apakah pernyataan berikut Benar atau Salah.</p>
+                            </div>
+                            <div class="space-y-6">
+                                ${tfQs.map((q, idx) => `
+                                    <div class="bg-gray-50 p-5 rounded-xl border border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                        <p class="font-medium text-gray-800 flex gap-3 flex-1">
+                                            <span class="bg-blue-600 text-white rounded-full w-7 h-7 flex items-center justify-center shrink-0 shadow-sm">${idx + 16}</span>
+                                            <span class="leading-relaxed">${q.q}</span>
+                                        </p>
+                                        <div class="flex gap-2 ml-10 md:ml-0 shrink-0">
+                                            <label class="cursor-pointer">
+                                                <input type="radio" name="ans_${q.id}" value="Benar" class="peer hidden" onchange="saveAnswer(${q.id}, 'Benar')">
+                                                <div class="px-5 py-2 border-2 border-gray-200 rounded-lg peer-checked:border-blue-500 peer-checked:bg-blue-50 peer-checked:text-blue-700 font-semibold transition hover:bg-gray-100 text-gray-600 text-center">Benar</div>
+                                            </label>
+                                            <label class="cursor-pointer">
+                                                <input type="radio" name="ans_${q.id}" value="Salah" class="peer hidden" onchange="saveAnswer(${q.id}, 'Salah')">
+                                                <div class="px-5 py-2 border-2 border-gray-200 rounded-lg peer-checked:border-red-500 peer-checked:bg-red-50 peer-checked:text-red-700 font-semibold transition hover:bg-gray-100 text-gray-600 text-center">Salah</div>
+                                            </label>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </section>
+
+                        <!-- Section 3: Menjodohkan -->
+                        <section>
+                            <div class="mb-6 pb-2 border-b-2 border-green-200 flex justify-between items-end">
+                                <div>
+                                    <h3 class="text-xl font-bold text-gray-800">III. Menjodohkan</h3>
+                                    <p class="text-sm text-gray-500">Pilih pasangan yang tepat untuk pernyataan di sebelah kiri.</p>
+                                </div>
+                            </div>
+                            <div class="space-y-4">
+                                ${matchQs.map((q, idx) => `
+                                    <div class="bg-gray-50 p-4 rounded-xl border border-gray-100 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+                                        <div class="flex gap-3 flex-1">
+                                            <span class="bg-purple-600 text-white rounded-full w-7 h-7 flex items-center justify-center shrink-0 shadow-sm">${idx + 26}</span>
+                                            <p class="font-medium text-gray-800 mt-0.5">${q.q}</p>
+                                        </div>
+                                        <div class="w-full sm:w-64 shrink-0 ml-10 sm:ml-0">
+                                            <select onchange="saveAnswer(${q.id}, this.value)" class="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-purple-500 text-sm shadow-sm cursor-pointer">
+                                                <option value="" disabled selected>-- Pilih Jawaban --</option>
+                                                ${matchOptionsBank.map(opt => `<option value="${opt}">${opt}</option>`).join('')}
+                                            </select>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </section>
+
+                    </div>
+
+                    <!-- Fixed Submit Button -->
+                    <div class="fixed bottom-0 left-0 w-full bg-white border-t p-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-50 flex justify-center">
+                        <div class="max-w-4xl w-full flex justify-between items-center">
+                            <p class="text-sm text-gray-500 font-medium hidden sm:block"><i class="fas fa-info-circle text-blue-500 mr-1"></i> Periksa kembali jawaban sebelum mengumpulkan.</p>
+                            <button onclick="confirmSubmit()" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-xl shadow-lg transform transition active:scale-95 w-full sm:w-auto">
+                                <i class="fas fa-paper-plane mr-2"></i>Kumpulkan Ujian
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            updateTimerDisplay(); // immediate init
+        }
+
+        window.saveAnswer = function(qId, val) {
+            state.answers[qId] = val;
+        };
+
+        window.confirmSubmit = function() {
+            const db = getDB();
+            const answeredCount = Object.keys(state.answers).length;
+            const totalQs = db.questions.length;
+            
+            let msg = `Anda telah menjawab ${answeredCount} dari ${totalQs} soal. `;
+            if (answeredCount < totalQs) {
+                msg += "Masih ada soal yang kosong. ";
+            }
+            msg += "Apakah Anda yakin ingin mengumpulkan ujian ini?";
+
+            showModal('Konfirmasi Pengumpulan', msg, 'warning', () => submitExam(false), true);
+        };
+
+        window.submitExam = function(autoSubmit = false) {
+            clearInterval(state.timer);
+            
+            const db = getDB();
+            let correct = 0;
+            
+            // Calculate Score
+            db.questions.forEach(q => {
+                const userAns = state.answers[q.id];
+                if (userAns !== undefined) {
+                    // Intentionally loose equality to handle string/number mismatches if any
+                    if (q.type === 'mc' && parseInt(userAns) === q.ans) correct++;
+                    else if (q.type === 'tf' && userAns === q.ans) correct++;
+                    else if (q.type === 'match' && userAns === q.ans) correct++;
+                }
+            });
+
+            const totalScore = (correct / db.questions.length) * 100;
+
+            // Save to DB (only if not in test mode)
+            if (!state.testMode && state.currentUser.role === 'siswa') {
+                const sId = state.currentUser.id;
+                db.students[sId].attempts += 1;
+                db.students[sId].history.push({
+                    score: totalScore,
+                    date: new Date().toISOString(),
+                    answers: state.answers
+                });
+                saveDB(db);
+                state.currentUser = db.students[sId]; // update local ref
+            }
+
+            // Save result to state for rendering
+            state.lastResult = { score: totalScore, correct, total: db.questions.length };
+            state.view = 'result';
+            
+            if (autoSubmit) {
+                showModal('Waktu Habis', 'Waktu Anda telah habis. Jawaban dikumpulkan secara otomatis.', 'info', () => render());
+            } else {
+                render();
+            }
+        };
+
+        function renderResult(container, db) {
+            const result = state.lastResult;
+            const isLulus = result.score >= KKM;
+            const dateStr = new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute:'2-digit' });
+
+            container.innerHTML = `
+                <div id="print-area" class="max-w-2xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden mt-6 animate-slide-in">
+                    
+                    <div class="bg-${isLulus ? 'green' : 'red'}-600 p-8 text-center text-white relative">
+                        <!-- Watermark -->
+                        <i class="fas fa-${isLulus ? 'trophy' : 'times-circle'} absolute opacity-10 text-9xl top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"></i>
+                        <h2 class="text-3xl font-bold mb-2 relative z-10">Hasil Asesmen</h2>
+                        <p class="text-${isLulus ? 'green' : 'red'}-100 text-sm relative z-10">Mata Pelajaran Matematika - Kelas 11</p>
+                    </div>
+                    
+                    <div class="p-8">
+                        <div class="text-center mb-8">
+                            <p class="text-gray-500 text-sm font-medium uppercase tracking-wider mb-1">Nilai Akhir</p>
+                            <div class="text-6xl font-black text-gray-800 mb-2">${result.score.toFixed(1)}</div>
+                            <span class="inline-block px-4 py-1 rounded-full font-bold text-sm ${isLulus ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'} border ${isLulus ? 'border-green-200' : 'border-red-200'}">
+                                ${isLulus ? 'LULUS (Mencapai KKM)' : 'BELUM LULUS (Di Bawah KKM)'}
+                            </span>
+                        </div>
+
+                        <div class="bg-gray-50 rounded-xl p-5 border border-gray-100 mb-8 shadow-sm">
+                            <h4 class="font-bold text-gray-700 mb-4 border-b pb-2">Identitas Peserta</h4>
+                            <div class="grid grid-cols-2 gap-4 text-sm">
+                                <div><span class="block text-gray-500 mb-0.5">Nama</span> <span class="font-semibold text-gray-900">${state.currentUser.name}</span></div>
+                                <div><span class="block text-gray-500 mb-0.5">Kelas</span> <span class="font-semibold text-gray-900">${state.currentUser.kelas || '-'}</span></div>
+                                <div><span class="block text-gray-500 mb-0.5">No. Presensi</span> <span class="font-semibold text-gray-900">${state.currentUser.presensi || '-'}</span></div>
+                                <div><span class="block text-gray-500 mb-0.5">Waktu Selesai</span> <span class="font-semibold text-gray-900">${dateStr}</span></div>
+                                <div><span class="block text-gray-500 mb-0.5">Benar</span> <span class="font-semibold text-green-600">${result.correct} dari ${result.total} Soal</span></div>
+                                ${!state.testMode ? `<div><span class="block text-gray-500 mb-0.5">Sisa Percobaan</span> <span class="font-semibold text-gray-900">${MAX_ATTEMPTS - state.currentUser.attempts} kali</span></div>` : ''}
+                            </div>
+                        </div>
+
+                        <div class="flex flex-col sm:flex-row gap-4 justify-center no-print mt-6">
+                            <button onclick="window.print()" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition shadow-md flex justify-center items-center gap-2">
+                                <i class="fas fa-file-pdf"></i> Unduh / Cetak Bukti
+                            </button>
+                            <button onclick="logout()" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-3 px-6 rounded-lg transition flex justify-center items-center gap-2">
+                                <i class="fas fa-home"></i> Kembali ke Awal
+                            </button>
+                        </div>
+                        
+                        ${state.testMode ? `<p class="text-center text-xs text-red-500 mt-4 no-print">*Ini adalah hasil uji coba, tidak disimpan ke database.</p>` : ''}
+                    </div>
+                    
+                    <!-- Print Footer -->
+                    <div class="hidden print:block mt-8 text-center text-xs text-gray-500 border-t pt-4">
+                        <p>Dokumen Resmi Asesmen MA Mu'allimin NU</p>
+                        <p>Disusun oleh Dra. Siti Daiyah</p>
+                        <p>KKM Matematika: ${KKM}</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        function initApp() {
+            // Ensure DB is seeded
+            getDB();
+            render();
+        }
+
+        // Start the application
+        document.addEventListener('DOMContentLoaded', initApp);
+
+    </script>
+</body>
+</html>
